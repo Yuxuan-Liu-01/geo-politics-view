@@ -5,7 +5,7 @@ from collections import Counter
 import re
 
 # ================== 配置 ==================
-CSV_FILE = r"D:\code\17\1215\output\美国热度前100事件_10天聚类.csv"
+CSV_FILE = "美国热度前100事件_10天聚类.csv"
 
 # 扩展国家/地区词典（覆盖你的数据）
 COUNTRIES = {
@@ -322,4 +322,5 @@ def main():
     """)
 
 if __name__ == "__main__":
+
     main()
