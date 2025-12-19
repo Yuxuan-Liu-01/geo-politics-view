@@ -3,6 +3,7 @@ import pandas as pd
 import plotly.express as px
 from collections import Counter
 import re
+import openpyxl
 
 # ================== 配置 ==================
 CSV_FILE = "last10day_filtered.csv"
@@ -403,4 +404,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
