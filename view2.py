@@ -5,7 +5,7 @@ from collections import Counter
 import re
 
 # ================== 配置 ==================
-CSV_FILE = r"E:\code2\code\1215\last10day_filtered.csv"
+CSV_FILE = "last10day_filtered.csv"
 
 COUNTRIES = {
     '中国', '美国', '菲律宾', '加拿大', '英国', '日本', '澳大利亚', '越南', '台湾',
@@ -353,4 +353,5 @@ def main():
             st.write(dict(metadata['party_counts'].most_common(20)))
 
 if __name__ == "__main__":
+
     main()
