@@ -107,7 +107,6 @@ def load_and_process_data():
     df['事件类型'] = df['事件标题'].apply(classify_event_type)
 
     # === 提取元数据：按频次排序 ===
-    # 地点
     location_list = [
         loc.strip()
         for locs in df['地点'].str.split('、')
@@ -117,7 +116,6 @@ def load_and_process_data():
     location_counts = Counter(location_list)
     all_locations = [item for item, count in location_counts.most_common()]
 
-    # 涉事方
     party_list = [
         p.strip()
         for parties in df['涉事方'].str.split('、')
@@ -135,6 +133,17 @@ def load_and_process_data():
     }
 
     return df, metadata
+
+# ================== 加载微博热搜数据 ==================
+@st.cache_data
+def load_weibo_hotsearch():
+    try:
+        weibo_df = pd.read_excel("微博热搜_南海.xlsx", sheet_name="Sheet1")
+        weibo_df['date'] = pd.to_datetime(weibo_df['date']).dt.date  # 转为 date 类型
+        return weibo_df[['date', 'title']]
+    except Exception as e:
+        st.warning(f"⚠️ 未找到微博热搜文件或读取失败：{e}")
+        return pd.DataFrame(columns=['date', 'title'])
 
 # ================== 实体提取 ==================
 
@@ -187,21 +196,59 @@ def main():
         st.warning("⚠️ 当前筛选条件下无数据")
         st.stop()
 
+    # ===== 加载微博热搜数据 =====
+    weibo_df = load_weibo_hotsearch()
 
-    # ===== 功能 1：年度节点表 =====
+    # ===== 功能 1：年度节点表（含微博热搜对比）=====
     st.header("年度节点表")
     window_size_days = 10
     filtered_df['window_start'] = filtered_df['时间'].dt.floor(f'{window_size_days}D')
-    node_table = filtered_df.groupby('window_start').agg(
-        热度=('总推文数', 'sum'),
-        事件数=('事件标题', 'count'),
-        Top事件=('主事件标题', lambda x: '；'.join(sorted(set(x))[:3]))
-    ).reset_index()
+
+    # 自定义聚合函数：按主事件汇总推文数，取 Top 3
+    def aggregate_window(group):
+        # 按主事件标题聚合总推文数
+        main_event_reach = group.groupby('主事件标题')['总推文数'].sum().nlargest(3)
+        top_events_str = '；'.join(main_event_reach.index)
+        return pd.Series({
+            '热度': group['总推文数'].sum(),
+            '事件数': len(group),
+            'Top事件': top_events_str
+        })
+
+    node_table = filtered_df.groupby('window_start').apply(aggregate_window).reset_index()
+
     node_table['窗口结束'] = node_table['window_start'] + pd.Timedelta(days=window_size_days - 1)
     node_table['window_start'] = node_table['window_start'].dt.strftime('%Y-%m-%d')
     node_table['窗口结束'] = node_table['窗口结束'].dt.strftime('%Y-%m-%d')
     node_table = node_table.sort_values('window_start', ascending=False)
-    st.dataframe(node_table[['window_start', '窗口结束', '热度', '事件数', 'Top事件']], use_container_width=True)
+
+    # 新增：匹配微博热搜
+    def get_hotsearch_info(window_start_str):
+        window_start = pd.to_datetime(window_start_str).date()
+        window_end = window_start + pd.Timedelta(days=9)
+        matched = weibo_df[
+            (weibo_df['date'] >= window_start) &
+            (weibo_df['date'] <= window_end)
+        ]
+        titles = matched['title'].tolist()
+        count = len(titles)
+        # 最多显示5条，避免过长
+        display_titles = "；".join(titles[:5]) if titles else "无"
+        return count, display_titles
+
+    # 应用函数
+    hotsearch_info = node_table['window_start'].apply(get_hotsearch_info)
+    node_table['热搜数量'] = [x[0] for x in hotsearch_info]
+    node_table['相关微博热搜'] = [x[1] for x in hotsearch_info]
+
+    # 显示表格
+    st.dataframe(
+        node_table[[
+            'window_start', '窗口结束', '热度', '事件数', 'Top事件',
+            '热搜数量', '相关微博热搜'
+        ]],
+        use_container_width=True
+    )
 
     # ===== 功能 1.5：事件类型时间趋势（累积）=====
     st.header("事件类型时间趋势（10天窗口 · 累积）")
@@ -353,5 +400,4 @@ def main():
             st.write(dict(metadata['party_counts'].most_common(20)))
 
 if __name__ == "__main__":
-
     main()
