@@ -6,6 +6,8 @@ import re
 
 # ================== 配置 ==================
 CSV_FILE = "last10day_filtered.csv"
+WEIBO_CSV_FILE = "微博热搜_南海.xlsx"
+
 
 COUNTRIES = {
     '中国', '美国', '菲律宾', '加拿大', '英国', '日本', '澳大利亚', '越南', '台湾',
@@ -138,7 +140,7 @@ def load_and_process_data():
 @st.cache_data
 def load_weibo_hotsearch():
     try:
-        weibo_df = pd.read_excel("微博热搜_南海.xlsx", sheet_name="Sheet1")
+        weibo_df = pd.read_excel(WEIBO_CSV_FILE, sheet_name="Sheet1")
         weibo_df['date'] = pd.to_datetime(weibo_df['date']).dt.date  # 转为 date 类型
         return weibo_df[['date', 'title']]
     except Exception as e:
@@ -401,3 +403,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
